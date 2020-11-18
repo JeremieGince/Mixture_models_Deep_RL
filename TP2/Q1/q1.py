@@ -150,11 +150,12 @@ def set_random_seed(environment, seed):
 def show_rewards(R: Iterable, **kwargs):
     plt.plot(R)
     plt.grid()
-    plt.title("Reward per episodes")
+    title = kwargs.get("title", "Reward per episodes")
+    plt.title(title)
     plt.ylabel("Reward [-]")
     plt.xlabel("Episodes [-]")
     os.makedirs("figures/", exist_ok=True)
-    plt.savefig("figures/TP2_Q1_rewards_per_episodes.png", dpi=300)
+    plt.savefig(f"figures/TP2_Q1_{title.replace(' ', '_')}.png", dpi=300)
     plt.show(block=kwargs.get("block", True))
 
 
