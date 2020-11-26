@@ -174,6 +174,7 @@ def set_random_seed(environment, seed):
 
 def show_rewards(R: Iterable, **kwargs):
     plt.plot(R)
+    plt.yticks(np.arange(max(np.min(R), -200), np.max(R)+1, 50))
     plt.grid()
     title = kwargs.get("title", "Reward per episodes")
     plt.title(title)
@@ -257,8 +258,11 @@ def main(
 
         R_episodes.append(R_episode)
         if episodes_done % verbose_interval == 0:
-            print(f"episode: {episodes_done}, R: {R_episode:.2f},"
-                  f" R_mean: {np.mean(R_episodes):.2f}, epsilon: {epsilon:.2f}")
+            if episodes_done == 0:
+                print(f"episode: {episodes_done}, R: {R_episode:.2f}, epsilon: {epsilon:.2f}")
+            else:
+                print(f"episode: {episodes_done}, R: {R_episode:.2f},"
+                      f" R_mean_100: {np.mean(R_episodes[:-100]):.2f}, epsilon: {epsilon:.2f}")
         if episodes_done % render_interval == 0 and episodes_done > 0:
             show_rewards(R_episodes, block=False)
         if episodes_done >= max_episode:
@@ -276,12 +280,13 @@ def main(
 def device_setup():
     import torch
     import sys
+
     print('__Python VERSION:', sys.version)
     print('__pyTorch VERSION:', torch.__version__)
-    print('__CUDA VERSION')
+    print('__CUDA VERSION: ')
     from subprocess import call
     call(["nvcc", "--version"])
-    print('__CUDNN VERSION:', torch.backends.cudnn.version())
+    print('\n __CUDNN VERSION:', torch.backends.cudnn.version())
     print('__Number CUDA Devices:', torch.cuda.device_count())
     # print('__Devices')
     # call(["nvidia-smi", "--format=csv", "--query-gpu=index,name,driver_version,memory.total,memory.used,memory.free"])
@@ -291,8 +296,7 @@ def device_setup():
     # print('Current cuda device ', torch.cuda.current_device())
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('Using device:', device)
-    print()
+    print(f"\n{'-' * 25}\nDEVICE: {device}\n{'-' * 25}\n")
 
     # Additional Info when using cuda
     if device.type == 'cuda':
@@ -310,7 +314,6 @@ if __name__ == "__main__":
     You can use them if they help  you, but feel free to implement
     from scratch the required algorithms if you wish !
     """
-    print(f"\n{'-' * 25}\nDEVICE: {DEVICE}\n{'-' * 25}\n")
     device_setup()
 
     main(
@@ -324,6 +327,6 @@ if __name__ == "__main__":
         epsilon_decay=0.90,
         min_epsilon=0.01,
         verbose_interval=100,
-        render_interval=1_000,
+        render_interval=100,
         max_episode=1_000,
     )
