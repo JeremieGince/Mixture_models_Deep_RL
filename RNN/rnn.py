@@ -13,32 +13,32 @@ import os
 import matplotlib.pyplot as plt
 import time
 
-
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 
 class ReplayBuffer:
     def __init__(self, buffer_size):
         self.__buffer_size = buffer_size
-        # TODO : Add any needed attributes
-        self.data: List[Tuple[np.ndarray, int, float, np.ndarray, bool]] = []  # List[(s, a, r, next_s, episode_done)]
 
-    def store(self, element: Tuple[np.ndarray, int, float, np.ndarray, bool]):
+        # List[(s, context, a, r, next_s, next_context, episode_done)]
+        self.data: List[Tuple[np.ndarray, np.ndarray, int, float, np.ndarray, np.ndarray, bool]] = []
+
+    def store(self, element: Tuple[np.ndarray, np.ndarray, int, float, np.ndarray, np.ndarray, bool]):
         """
         Stores an element. If the replay buffer is already full, deletes the oldest
         element to make space.
         """
-        # TODO : Implement
         if len(self.data) >= self.__buffer_size:
             self.data.pop(0)
 
         self.data.append(element)
 
-    def get_batch(self, batch_size: int) -> List[Tuple[np.ndarray, int, float, np.ndarray, bool]]:
+    def get_batch(self,
+                  batch_size: int
+                  ) -> List[Tuple[np.ndarray, np.ndarray, int, float, np.ndarray, np.ndarray, bool]]:
         """
         Returns a list of batch_size elements from the buffer.
         """
-        # TODO : Implement
         return random.choices(self.data, k=batch_size)
 
 
@@ -47,15 +47,17 @@ class DQN(Model):
         self.actions = actions
         super().__init__(*args, **kwargs)
 
-    def get_action(self, state: Union[torch.Tensor, np.ndarray], epsilon: float) -> int:
+    def get_action(self,
+                   state: Union[torch.Tensor, np.ndarray],
+                   context: Union[torch.Tensor, np.ndarray],
+                   epsilon: float) -> int:
         """
         Returns the selected action according to an epsilon-greedy policy.
         """
-        # TODO: implement
         if np.random.random() < epsilon:
             return np.random.choice(self.actions)
         else:
-            return np.argmax(self.predict(state[np.newaxis, :], batch_size=1).squeeze()).item()
+            return np.argmax(self.predict([state[np.newaxis, ], context[np.newaxis, ]], batch_size=1).squeeze()).item()
 
     def soft_update(self, other, tau):
         """
@@ -75,31 +77,63 @@ class DQN(Model):
         self.set_weights(new_weights)
 
 
-class NNModel(torch.nn.Module):
+class RNNModel(torch.nn.Module):
     """
     Neural Network with 3 hidden layers of hidden dimension 64.
     """
 
-    def __init__(self, in_dim, out_dim, n_hidden_layers=3, hidden_dim=64):
+    def __init__(self, in_dim: int, out_dim: int, n_hidden_layers: int = 3, hidden_dim: int = 64):
         super().__init__()
-        layers = [torch.nn.Linear(in_dim, hidden_dim), torch.nn.ReLU()]
-        for _ in range(n_hidden_layers - 1):
-            layers.extend([torch.nn.Linear(hidden_dim, hidden_dim), torch.nn.ReLU()])
-        layers.append(torch.nn.Linear(hidden_dim, out_dim))
 
-        self.fa = torch.nn.Sequential(*layers)
+        self.linear_block = lambda i, o: torch.nn.Sequential(*[
+            torch.nn.Linear(i, o),
+            torch.nn.ReLU(),
+        ])
 
-    def forward(self, x):
-        return self.fa(x)
+        self.backbone = torch.nn.Sequential(*[
+            self.linear_block(in_dim, hidden_dim),
+            *[self.linear_block(hidden_dim, hidden_dim) for _ in range(n_hidden_layers)]
+        ])
+
+        self.fusion_layer = torch.nn.Sequential(*[
+            self.linear_block(2 * hidden_dim, hidden_dim)
+        ])
+
+        self.q_predictor = torch.nn.Sequential(*[
+            torch.nn.Linear(hidden_dim, out_dim)
+        ])
+
+        self.context_state = torch.zeros(size=(hidden_dim,))
+        self.hidden_state = torch.zeros(size=(hidden_dim,))
+
+    def get_context_state(self):
+        return self.context_state
+
+    def get_hidden_state(self):
+        return self.hidden_state
+
+    def forward(self, *inputs):
+        [state, context] = inputs
+
+        # features = self.backbone(torch.cat([t.float() for t in inputs], dim=-1))
+        # fusion_features = self.fusion_layer(fusion_state)
+        # q_values = self.q_predictor(fusion_features)
+
+        state_features = self.backbone(state.float())
+        context_features = self.backbone(context.float())
+        fusion_state = torch.cat([state_features, context_features], dim=-1)
+        fusion_features = self.fusion_layer(fusion_state)
+        q_values = self.q_predictor(fusion_features)
+        return q_values
 
 
 def format_batch(
-        batch: List[Tuple[np.ndarray, int, float, np.ndarray, bool]],
+        batch: List[Tuple[np.ndarray, np.ndarray, int, float, np.ndarray, np.ndarray, bool]],
         target_network: DQN,
         gamma: float
-) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+) -> Tuple[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray]]:
     """
-    Input : 
+    Input :
         - batch, a list of n=batch_size elements from the replay buffer
         - target_network, the target network to compute the one-step lookahead target
         - gamma, the discount factor
@@ -107,20 +141,20 @@ def format_batch(
     Returns :
         - states, a numpy array of size (batch_size, state_dim) containing the states in the batch
         - (actions, targets) : where actions and targets both
-                      have the shape (batch_size, ). Actions are the 
+                      have the shape (batch_size, ). Actions are the
                       selected actions according to the target network
                       and targets are the one-step lookahead targets.
     """
     # TODO: Implement
     states = np.array([e[0] for e in batch])
-    actions = np.array([e[1] for e in batch])
+    actions = np.array([e[2] for e in batch])
+    contexts = np.array([e[1] for e in batch])
 
-    next_states = np.array([e[3] for e in batch])
-    target_predictions = target_network.predict(next_states, batch_size=len(next_states))
-    dones = np.array([e[4] for e in batch])
-    target_predictions[dones] = 0
-    targets = np.array([e[2] + gamma * np.max(q) for e, q in zip(batch, target_predictions)])
-    return states, (actions, targets)
+    next_states = np.array([e[4] for e in batch])
+    next_contexts = np.array([e[5] for e in batch])
+    target_predictions = target_network.predict([next_states, next_contexts], batch_size=len(next_states))
+    targets = np.array([e[3] + gamma * np.max(q) * (1 - e[6]) for e, q in zip(batch, target_predictions)])
+    return (states, contexts), (actions, targets)
 
 
 def dqn_loss(y_pred: torch.Tensor, y_target: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
@@ -128,12 +162,12 @@ def dqn_loss(y_pred: torch.Tensor, y_target: Tuple[torch.Tensor, torch.Tensor]) 
     Input :
         - y_pred, (batch_size, n_actions) Tensor outputted by the network
         - y_target = (actions, targets), where actions and targets both
-                      have the shape (batch_size, ). Actions are the 
+                      have the shape (batch_size, ). Actions are the
                       selected actions according to the target network
                       and targets are the one-step lookahead targets.
 
     Returns :
-        - The DQN loss 
+        - The DQN loss
     """
     # TODO: Implement
     actions, targets = y_target
@@ -176,7 +210,7 @@ def main(
     set_random_seed(environment, seed)
 
     actions = list(range(environment.action_space.n))
-    model = NNModel(environment.observation_space.shape[0], environment.action_space.n)
+    model = RNNModel(environment.observation_space.shape[0], environment.action_space.n)
     policy_net = DQN(
         actions,
         model,
@@ -203,13 +237,19 @@ def main(
 
     while not training_done:
         s = environment.reset()
+        context = np.zeros(s.shape)
+        context_itr: int = 0
+
         episode_done = False
         R_episode: float = 0.0
         while not episode_done:
-            a = policy_net.get_action(s, epsilon)
+            a = policy_net.get_action(s, context, epsilon)
             next_s, r, episode_done, _ = environment.step(a)
-            replay_buffer.store((s, a, r, next_s, episode_done))
+            next_context = (context_itr * context + next_s) / (context_itr + 1)
+
+            replay_buffer.store((s, context, a, r, next_s, next_context, episode_done))
             s = next_s
+            context = next_context
             steps_done += 1
 
             R_episode += r
@@ -238,7 +278,7 @@ def main(
     show_rewards(R_episodes, block=True)
     print(f"\n episodes: {episodes_done},"
           f" R_mean: {np.mean(R_episodes):.2f},"
-          f"Elapse time: {time.time()-start_time:.2f} [s] \n")
+          f"Elapse time: {time.time() - start_time:.2f} [s] \n")
     environment.close()
 
 
@@ -246,7 +286,7 @@ if __name__ == "__main__":
     """
     All hyperparameter values and overall code structure are
     only given as a baseline. 
-    
+
     You can use them if they help  you, but feel free to implement
     from scratch the required algorithms if you wish !
     """
@@ -259,10 +299,10 @@ if __name__ == "__main__":
         seed=42,
         tau=1e-2,
         training_interval=4,
-        lr=5e-4,
+        lr=1e-3,
         epsilon_decay=0.90,
         min_epsilon=0.01,
         verbose_interval=100,
-        render_interval=600,
-        max_episode=600,
+        render_interval=1_000,
+        max_episode=1_000,
     )
