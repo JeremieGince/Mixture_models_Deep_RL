@@ -90,7 +90,12 @@ class RNNModel(torch.nn.Module):
             torch.nn.ReLU(),
         ])
 
-        self.backbone = torch.nn.Sequential(*[
+        self.state_backbone = torch.nn.Sequential(*[
+            self.linear_block(in_dim, hidden_dim),
+            *[self.linear_block(hidden_dim, hidden_dim) for _ in range(n_hidden_layers)]
+        ])
+
+        self.context_backbone = torch.nn.Sequential(*[
             self.linear_block(in_dim, hidden_dim),
             *[self.linear_block(hidden_dim, hidden_dim) for _ in range(n_hidden_layers)]
         ])
@@ -103,24 +108,11 @@ class RNNModel(torch.nn.Module):
             torch.nn.Linear(hidden_dim, out_dim)
         ])
 
-        self.context_state = torch.zeros(size=(hidden_dim,))
-        self.hidden_state = torch.zeros(size=(hidden_dim,))
-
-    def get_context_state(self):
-        return self.context_state
-
-    def get_hidden_state(self):
-        return self.hidden_state
-
     def forward(self, *inputs):
         [state, context] = inputs
 
-        # features = self.backbone(torch.cat([t.float() for t in inputs], dim=-1))
-        # fusion_features = self.fusion_layer(fusion_state)
-        # q_values = self.q_predictor(fusion_features)
-
-        state_features = self.backbone(state.float())
-        context_features = self.backbone(context.float())
+        state_features = self.state_backbone(state.float())
+        context_features = self.context_backbone(context.float())
         fusion_state = torch.cat([state_features, context_features], dim=-1)
         fusion_features = self.fusion_layer(fusion_state)
         q_values = self.q_predictor(fusion_features)
@@ -155,7 +147,6 @@ def format_batch(
     target_predictions = target_network.predict([next_states, next_contexts], batch_size=len(next_states))
     targets = np.array([e[3] + gamma * np.max(q) * (1 - e[6]) for e, q in zip(batch, target_predictions)])
     return (states, contexts), (actions, targets)
-
 
 def dqn_loss(y_pred: torch.Tensor, y_target: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
     """
@@ -275,11 +266,40 @@ def main(
         epsilon = max(min_epsilon, epsilon_decay * epsilon)
         episodes_done += 1
 
-    show_rewards(R_episodes, block=True)
+    show_rewards(R_episodes, block=True, title="RNN Rewards")
     print(f"\n episodes: {episodes_done},"
-          f" R_mean: {np.mean(R_episodes):.2f},"
+          f" R_mean: {np.mean(R_episodes[:-100]):.2f},"
           f"Elapse time: {time.time() - start_time:.2f} [s] \n")
     environment.close()
+
+
+def device_setup():
+    import torch
+    import sys
+    print('__Python VERSION:', sys.version)
+    print('__pyTorch VERSION:', torch.__version__)
+    print('__CUDA VERSION')
+    from subprocess import call
+    call(["nvcc", "--version"])
+    print('__CUDNN VERSION:', torch.backends.cudnn.version())
+    print('__Number CUDA Devices:', torch.cuda.device_count())
+    # print('__Devices')
+    # call(["nvidia-smi", "--format=csv", "--query-gpu=index,name,driver_version,memory.total,memory.used,memory.free"])
+    # print('Active CUDA Device: GPU', torch.cuda.current_device())
+
+    # print('Available devices ', torch.cuda.device_count())
+    # print('Current cuda device ', torch.cuda.current_device())
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print('Using device:', device)
+    print()
+
+    # Additional Info when using cuda
+    if device.type == 'cuda':
+        print(torch.cuda.get_device_name(0))
+        print('Memory Usage:')
+        print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
+        print('Cached:   ', round(torch.cuda.memory_reserved(0) / 1024 ** 3, 1), 'GB')
 
 
 if __name__ == "__main__":
@@ -290,8 +310,9 @@ if __name__ == "__main__":
     You can use them if they help  you, but feel free to implement
     from scratch the required algorithms if you wish !
     """
+    print(f"\n{'-' * 25}\nDEVICE: {DEVICE}\n{'-' * 25}\n")
+    device_setup()
 
-    # NEW : pass lr to main()
     main(
         batch_size=32,
         gamma=0.99,
