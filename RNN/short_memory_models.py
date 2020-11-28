@@ -446,7 +446,7 @@ if __name__ == "__main__":
                 tau=1e-2,
                 training_interval=4,
                 lr=1e-3,
-                epsilon_decay=0.90,
+                epsilon_decay=0.99,
                 min_epsilon=0.01,
                 verbose_interval=100,
                 render_interval=100,
