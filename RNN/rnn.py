@@ -148,6 +148,7 @@ def format_batch(
     targets = np.array([e[3] + gamma * np.max(q) * (1 - e[6]) for e, q in zip(batch, target_predictions)])
     return (states, contexts), (actions, targets)
 
+
 def dqn_loss(y_pred: torch.Tensor, y_target: Tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
     """
     Input :
