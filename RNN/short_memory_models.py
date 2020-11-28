@@ -285,10 +285,10 @@ def show_rewards(R: Iterable, **kwargs):
     subfolder = kwargs.get("subfolder", False)
     if subfolder:
         os.makedirs(f"figures/{subfolder}/", exist_ok=True)
-        plt.savefig(f"figures/{subfolder}/Projet_{title.replace(' ', '_')}.png", dpi=300)
+        plt.savefig(f"figures/{subfolder}/Projet_{title.replace(' ', '_').replace(':', '_')}.png", dpi=300)
     else:
         os.makedirs("figures/", exist_ok=True)
-        plt.savefig(f"figures/Projet_{title.replace(' ', '_')}.png", dpi=300)
+        plt.savefig(f"figures/Projet_{title.replace(' ', '_').replace(':', '_')}.png", dpi=300)
     plt.show(block=kwargs.get("block", True))
 
 
