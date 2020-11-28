@@ -134,6 +134,7 @@ class PotoSMRNN(torch.nn.Module):
                  out_dim: int,
                  n_hidden_layers: int = 3,
                  hidden_dim: int = 64,
+                 memory_size: int = 10,
                  **kwargs):
         super().__init__()
 
@@ -159,6 +160,7 @@ class PotoSMRNN(torch.nn.Module):
         self.q_predictor = torch.nn.Sequential(*[
             torch.nn.Linear(hidden_dim, out_dim)
         ])
+        self.memory_size: int = memory_size
 
     def forward(self, *inputs):
         [state, ] = inputs
@@ -279,8 +281,14 @@ def show_rewards(R: Iterable, **kwargs):
     plt.title(title)
     plt.ylabel("Reward [-]")
     plt.xlabel("Episodes [-]")
-    os.makedirs("figures/", exist_ok=True)
-    plt.savefig(f"figures/Projet_{title.replace(' ', '_')}.png", dpi=300)
+
+    subfolder = kwargs.get("subfolder", False)
+    if subfolder:
+        os.makedirs(f"figures/{subfolder}/", exist_ok=True)
+        plt.savefig(f"figures/{subfolder}/Projet_{title.replace(' ', '_')}.png", dpi=300)
+    else:
+        os.makedirs("figures/", exist_ok=True)
+        plt.savefig(f"figures/Projet_{title.replace(' ', '_')}.png", dpi=300)
     plt.show(block=kwargs.get("block", True))
 
 
@@ -297,7 +305,8 @@ def main(
         min_epsilon: float,
         **kwargs
 ):
-    environment = gym.make("LunarLander-v2")
+    env_name = kwargs.get("env", "LunarLander-v2")
+    environment = gym.make(env_name)
     set_random_seed(environment, seed)
 
     actions = list(range(environment.action_space.n))
@@ -365,13 +374,16 @@ def main(
                 print(f"episode: {episodes_done}, R: {R_episode:.2f},"
                       f" R_mean_100: {np.mean(R_episodes[:-100]):.2f}, epsilon: {epsilon:.2f}")
         if episodes_done % render_interval == 0 and episodes_done > 0:
-            show_rewards(R_episodes, block=False, title=kwargs.get("title", "RNN Rewards")+f", epi {episodes_done} ")
+            show_rewards(R_episodes, block=False,
+                         title=kwargs.get("title", "RNN Rewards")+f", epi {episodes_done} " + f" env: {env_name}",
+                         subfolder=f"temp/{env_name}")
         if episodes_done >= max_episode:
             training_done = True
         epsilon = max(min_epsilon, epsilon_decay * epsilon)
         episodes_done += 1
 
-    show_rewards(R_episodes, block=True, title=kwargs.get("title", "RNN Rewards"))
+    show_rewards(R_episodes, block=True,
+                 title=kwargs.get("title", "RNN Rewards") + f" env: {env_name}", subfolder=f"{env_name}")
     print(f"\n episodes: {episodes_done},"
           f" R_mean_100: {np.mean(R_episodes[:-100]):.2f},"
           f"Elapse time: {time.time() - start_time:.2f} [s] \n")
@@ -396,8 +408,7 @@ def device_setup():
     # print('Current cuda device ', torch.cuda.current_device())
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('Using device:', device)
-    print()
+    print(f"\n{'-' * 25}\nDEVICE: {device}\n{'-' * 25}\n")
 
     # Additional Info when using cuda
     if device.type == 'cuda':
@@ -415,27 +426,33 @@ if __name__ == "__main__":
     You can use them if they help  you, but feel free to implement
     from scratch the required algorithms if you wish !
     """
-    print(f"\n{'-' * 25}\nDEVICE: {DEVICE}\n{'-' * 25}\n")
     device_setup()
 
-    main(
-        batch_size=32,
-        gamma=0.99,
-        buffer_size=int(1e5),
-        seed=42,
-        tau=1e-2,
-        training_interval=4,
-        lr=1e-3,
-        epsilon_decay=0.90,
-        min_epsilon=0.01,
-        verbose_interval=100,
-        render_interval=100,
-        max_episode=1_000,
-        # title="Short memory LSTM Rewards",
-        # model_type=SMLSTM,
-        title="Short memory GRU Rewards",
-        model_type=SMGRU,
-        # title="Prototypical short memory RNN Rewards",
-        # model_type=PotoSMRNN,
-        memory_size=20,
-    )
+    models = [
+        {"title": "Short memory LSTM Rewards", "model_type": SMLSTM, "memory_size": 20},
+        {"title": "Short memory GRU Rewards", "model_type": SMGRU, "memory_size": 20},
+        {"title": "Prototypical short memory RNN Rewards", "model_type": PotoSMRNN, "memory_size": 20},
+    ]
+    envs = ["Acrobot-v1"]
+
+    for _env in envs:
+        for _m in models:
+            print(f"\n{'-' * 75}\n\tenv: {_env}\n\ttitle: {_m['title']}\n{'-' * 75}\n")
+            main(
+                batch_size=32,
+                gamma=0.99,
+                buffer_size=int(1e5),
+                seed=42,
+                tau=1e-2,
+                training_interval=4,
+                lr=1e-3,
+                epsilon_decay=0.90,
+                min_epsilon=0.01,
+                verbose_interval=100,
+                render_interval=100,
+                max_episode=1_000,
+                title=_m["title"],
+                model_type=_m["model_type"],
+                memory_size=_m["memory_size"],
+                env=_env,
+            )
