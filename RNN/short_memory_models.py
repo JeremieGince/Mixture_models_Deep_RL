@@ -433,7 +433,7 @@ if __name__ == "__main__":
         {"title": "Short memory GRU Rewards", "model_type": SMGRU, "memory_size": 20},
         {"title": "Prototypical short memory RNN Rewards", "model_type": PotoSMRNN, "memory_size": 20},
     ]
-    envs = ["Acrobot-v1", "LunarLander-v2", ]
+    envs = ["LunarLander-v2", "Acrobot-v1", ]
 
     for _env in envs:
         for _m in models:
