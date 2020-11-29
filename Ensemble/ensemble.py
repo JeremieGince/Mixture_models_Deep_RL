@@ -100,7 +100,7 @@ if __name__ == "__main__":
                 list_models = []
                 for m in ensemble:
                     print(m["model_name"], end=" ")
-                    weights_path = "trained_models"+m["model_name"] + "_" + _env + ".weights"
+                    weights_path = "trained_models/"+m["model_name"] + "_" + _env + ".weights"
                     list_models.append(load_model(m["model_type"], weights_path, env))
 
                 actions = list(range(env.action_space.n))
