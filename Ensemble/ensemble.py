@@ -105,6 +105,6 @@ if __name__ == "__main__":
 
                 actions = list(range(env.action_space.n))
                 avg_ensemble = Average_ensemble(actions, list_models, normalize_preds=True)
-                history = evaluate_memory_models(avg_ensemble, env, test_episodes=5)
+                history = evaluate_memory_models(avg_ensemble, env, test_episodes=100)
                 np.save("test_results/"+'_'.join([m["model_name"] for m in ensemble])+_env+".npy", history)
                 print()
