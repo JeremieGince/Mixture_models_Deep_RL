@@ -1,2 +1,1 @@
-# Spiking_Neural_Networks_Q_Learning
- Spiking Neural Networks with Q-learning
+# Mixture_models_Deep_RL
