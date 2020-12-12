@@ -1,9 +1,7 @@
 import pennylane as qml
-from pennylane import numpy as np
 import torch
+from pennylane import numpy as np
 from pennylane.templates import RandomLayers
-import time
-from scipy.ndimage.filters import generic_filter
 
 
 class QuantumConvolutionLayer(torch.nn.Module):
@@ -42,7 +40,8 @@ class QuantumConvolutionLayer(torch.nn.Module):
                 x.shape[2] // self.kernel_size[0],
                 x.shape[3] // self.kernel_size[1]
             )
-        output_shape = (x.shape[0], x.shape[1]*self.nb_qubits, x.shape[2] // self.kernel_size[0], x.shape[3] // self.kernel_size[1])
+        output_shape = (
+        x.shape[0], x.shape[1] * self.nb_qubits, x.shape[2] // self.kernel_size[0], x.shape[3] // self.kernel_size[1])
         out = torch.zeros(output_shape).to(x.device)
         for i in range(x.shape[0]):
             for j in range(x.shape[1]):
@@ -51,7 +50,8 @@ class QuantumConvolutionLayer(torch.nn.Module):
 
     def convolve(self, x):
         # x = torch.squeeze(x)
-        out = torch.zeros((self.nb_qubits, x.shape[0] // self.kernel_size[0], x.shape[1] // self.kernel_size[1])).to(x.device)
+        out = torch.zeros((self.nb_qubits, x.shape[0] // self.kernel_size[0], x.shape[1] // self.kernel_size[1])).to(
+            x.device)
         for j in range(0, x.shape[0] - 1):
             for k in range(0, x.shape[1] - 1):
                 # Process a squared 2x2 region of the image with a quantum circuit
@@ -94,4 +94,4 @@ if __name__ == '__main__':
     outputs = q_conv_layer(inputs)
     print(outputs.shape)
 
-    print(f"elapse time: {time.time()-s:.2f}")
+    print(f"elapse time: {time.time() - s:.2f}")
