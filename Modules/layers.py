@@ -89,8 +89,8 @@ if __name__ == '__main__':
     import time
 
     s = time.time()
-    q_conv_layer = QuantumConvolutionLayer(kernel_size=(2, 2), nb_qubits=2)
-    inputs = torch.Tensor(np.ones((32, 1, 8, 8))).float()
+    q_conv_layer = QuantumConvolutionLayer(kernel_size=(4, 4), nb_qubits=2)
+    inputs = torch.Tensor(np.ones((64, 1, 32, 32))).float()
     outputs = q_conv_layer(inputs)
     print(outputs.shape)
 
