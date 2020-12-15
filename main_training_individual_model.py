@@ -163,6 +163,7 @@ def main(
 ):
     if model_kwargs is None:
         model_kwargs = {}
+    #save_best_mean = kwargs.get("save_best_mean", 0)
     env_name = kwargs.get("env", "LunarLander-v2")
     environment = gym.make(env_name)
     set_random_seed(environment, seed)
@@ -196,7 +197,7 @@ def main(
 
     R_episodes = []
     start_time = time.time()
-
+    best_score = -np.inf
     while not training_done:
         frame = environment.reset()
         state = np.zeros((model.memory_size, *environment.observation_space.shape))
@@ -232,11 +233,16 @@ def main(
                 print(f"episode: {episodes_done}, R: {R_episode:.2f}, epsilon: {epsilon:.2f}")
             else:
                 print(f"episode: {episodes_done}, R: {R_episode:.2f},"
-                      f" R_mean_100: {np.mean(R_episodes[:-100]):.2f}, epsilon: {epsilon:.2f}")
+                      f" R_mean_100: {np.mean(R_episodes[-100:]):.2f}, epsilon: {epsilon:.2f}")
         if episodes_done % render_interval == 0 and episodes_done > 0:
             show_rewards(R_episodes, block=False,
                          title=kwargs.get("title", "RNN Rewards") + f", epi {episodes_done} " + f" env: {env_name}",
                          subfolder=f"temp/{env_name}")
+        
+        if np.mean(R_episodes[-100:]) > best_score:
+            best_score = np.mean(R_episodes[-100:])
+            policy_net.save_weights(kwargs.get("filename_weights", "model_weights")+".weights")
+        
         if episodes_done >= max_episode:
             training_done = True
         epsilon = max(min_epsilon, epsilon_decay * epsilon)
@@ -284,18 +290,18 @@ if __name__ == "__main__":
 
     models = [
         {"title": "Short memory LSTM Rewards", "model_type": SMLSTM, "memory_size": 20,
-         "model_kwargs": {}, },
+         "model_kwargs": {"name": "LSTM"}, },
         {"title": "Short memory GRU Rewards", "model_type": SMGRU, "memory_size": 20,
-         "model_kwargs": {}, },
+         "model_kwargs": {"name": "GRU"}, },
         {"title": "Prototypical short memory RNN Rewards", "model_type": PotoSMRNN, "memory_size": 20,
-         "model_kwargs": {}, },
+         "model_kwargs": {"name": "RNN"}, },
         {"title": "Short memory space CNN Rewards", "model_type": SMCNN, "memory_size": 20,
-         "model_kwargs": {"permute": False}, },
+         "model_kwargs": {"permute": False, "name": "space_CNN"}, },
         {"title": "Short memory temporal CNN Rewards", "model_type": SMCNN, "memory_size": 20,
-         "model_kwargs": {"permute": True},
+         "model_kwargs": {"permute": True, "name": "temporal_CNN"},
          },
         {"title": "Short memory NN Rewards", "model_type": SMNNModel, "memory_size": 20,
-         "model_kwargs": {},
+         "model_kwargs": {"name": "NN"},
          },
         # {"title": "Short memory Quantum NN Rewards", "model_type": SMQNNModel, "memory_size": 20,
         #  "model_kwargs": {"nb_qubits": 2, "nb_q_layer": 2, "hidden_dim": 2, "n_hidden_layers": 2},
@@ -322,11 +328,12 @@ if __name__ == "__main__":
                 epsilon_decay=0.995,
                 min_epsilon=0.01,
                 verbose_interval=100,
-                render_interval=100,
+                render_interval=10000,
                 max_episode=1_000,
                 title=_m["title"],
                 model_type=_m["model_type"],
                 memory_size=_m["memory_size"],
                 model_kwargs=_m["model_kwargs"],
                 env=_env,
+                filename_weights="trained_models/"+_m["model_kwargs"]["name"]+"_"+_env
             )
