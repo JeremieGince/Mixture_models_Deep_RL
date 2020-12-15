@@ -251,7 +251,7 @@ def main(
     show_rewards(R_episodes, block=True,
                  title=kwargs.get("title", "RNN Rewards") + f" env: {env_name}", subfolder=f"{env_name}")
     print(f"\n episodes: {episodes_done},"
-          f" R_mean_100: {np.mean(R_episodes[:-100]):.2f},"
+          f" R_mean_100: {np.mean(R_episodes[-100:]):.2f},"
           f"Elapse time: {time.time() - start_time:.2f} [s] \n")
     environment.close()
 
