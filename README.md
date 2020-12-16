@@ -8,5 +8,5 @@
 
 4- Train Attn_ensemble: train_attn_ensemble.py
 
-5- Evluate Attn_ensemble: evaluate_attn_ensemble.py
+5- Evaluate Attn_ensemble: evaluate_attn_ensemble.py
 
