@@ -7,7 +7,7 @@ from torch import nn
 from Models.short_memory_model import SMModel
 
 
-class PotoSMRNN(SMModel):
+class ProtoSMRNN(SMModel):
     """
     """
 

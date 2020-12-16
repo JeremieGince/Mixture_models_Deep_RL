@@ -11,14 +11,17 @@ import torch
 from poutyne import Model
 
 from Models.short_memory_model import SMModel
-from utils import set_random_seed, show_rewards
+from utils import set_random_seed, show_rewards, load_model
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+import itertools
+from dqn import DQN, dqn_loss, ReplayBuffer, format_batch
 
+from Ensemble.attn_ensemble import *
 
-from dqn import ReplayBuffer, DQN, format_batch, dqn_loss
 
 
 def main(
+        ensemble,
         batch_size: int,
         gamma: float,
         buffer_size: int,
@@ -33,30 +36,41 @@ def main(
 ):
     if model_kwargs is None:
         model_kwargs = {}
-
+    #save_best_mean = kwargs.get("save_best_mean", 0)
     env_name = kwargs.get("env", "LunarLander-v2")
     environment = gym.make(env_name)
     set_random_seed(environment, seed)
 
     print(f"environment.observation_space.shape: {environment.observation_space.shape}")
     actions = list(range(environment.action_space.n))
-    model: SMModel = kwargs.get("model_type", SMLSTM)(environment.observation_space.shape,
-                                                      environment.action_space.n,
-                                                      memory_size=kwargs.get("memory_size", 20),
-                                                      **model_kwargs)
-    policy_net = DQN(
-        actions,
-        model,
-        optimizer=torch.optim.Adam(model.parameters(), lr=lr),
-        loss_function=dqn_loss,
-    )
-    # NEW: pass a deep copy of the model
-    target_net = DQN(actions, deepcopy(model), optimizer="sgd", loss_function=dqn_loss, )
+    env_memory_size = max([m["memory_size"] for m in ensemble])
+    list_models = []
+    for m in ensemble:
+        print(m["model_kwargs"]["name"])
+        weights_path = "trained_models/"+m["model_kwargs"]["name"] + "_" + _env + ".weights"
+
+        list_models.append(load_model(m["model_type"], weights_path, env, m["memory_size"], model_kwargs=m["model_kwargs"]))
+
+
+    attn_fusion = Fusion_network(list_models,
+                                 len(actions),
+                                 environment.observation_space.shape[0],
+                                 len(list_models))
+    attn_ensemble = Attention_ensemble(actions,
+                                       list_models,
+                                       network=attn_fusion,
+                    optimizer=torch.optim.Adam(attn_fusion.parameters(), lr=lr),
+                    loss_function=dqn_loss)
+    
+
+    target_net = Attention_ensemble(actions, list_models,
+                    network=deepcopy(attn_fusion),
+                    optimizer="sgd",
+                    loss_function=dqn_loss)
     replay_buffer = ReplayBuffer(buffer_size)
 
-    model.to(DEVICE)
-    policy_net.to(DEVICE)
-
+    
+    
     training_done = False
     max_episode = kwargs.get("max_episode", 600)
     episodes_done = 0
@@ -70,13 +84,13 @@ def main(
     best_score = -np.inf
     while not training_done:
         frame = environment.reset()
-        state = np.zeros((model.memory_size, *environment.observation_space.shape))
+        state = np.zeros((env_memory_size, *environment.observation_space.shape))
         state[-1] = frame
 
         terminal = False
         R_episode: float = 0.0
         while not terminal:
-            a = policy_net.get_action(state, epsilon)
+            a = attn_ensemble.get_action(state, epsilon)
             next_frame, r, terminal, _ = environment.step(a)
 
             next_state = np.vstack([np.delete(deepcopy(state), obj=0, axis=0), next_frame])
@@ -91,8 +105,8 @@ def main(
                 if len(replay_buffer.data) >= batch_size:
                     batch = replay_buffer.get_batch(batch_size)
                     x, y = format_batch(batch, target_net, gamma)
-                    loss = policy_net.train_on_batch(x, y)
-                    target_net.soft_update(policy_net, tau)
+                    loss = attn_ensemble.train_on_batch(x, y)
+                    target_net.soft_update(attn_ensemble, tau)
 
             if episodes_done % render_interval == 0 and episodes_done > 0:
                 environment.render()
@@ -108,11 +122,7 @@ def main(
             show_rewards(R_episodes, block=False,
                          title=kwargs.get("title", "RNN Rewards") + f", epi {episodes_done} " + f" env: {env_name}",
                          subfolder=f"temp/{env_name}")
-        
-        #if np.mean(R_episodes[-100:]) > best_score:
-        #    best_score = np.mean(R_episodes[-100:])
-        
-        
+
         if episodes_done >= max_episode:
             training_done = True
         epsilon = max(min_epsilon, epsilon_decay * epsilon)
@@ -124,8 +134,8 @@ def main(
           f" R_mean_100: {np.mean(R_episodes[-100:]):.2f},"
           f"Elapse time: {time.time() - start_time:.2f} [s] \n")
     environment.close()
-    policy_net.save_weights(kwargs.get("filename_weights", "model_weights")+".weights")
-
+    attn_ensemble.save_weights(kwargs.get("filename_weights", "model_weights")+".weights")
+    
 
 def device_setup():
     import torch
@@ -159,7 +169,6 @@ if __name__ == "__main__":
     device_setup()
 
     models = [
-        
         {"title": "Short memory LSTM Rewards", "model_type": SMLSTM, "memory_size": 20,
          "model_kwargs": {"name": "LSTM"}, },
         {"title": "Short memory GRU Rewards", "model_type": SMGRU, "memory_size": 20,
@@ -170,7 +179,7 @@ if __name__ == "__main__":
          "model_kwargs": {"permute": False, "name": "space_CNN"}, },
         {"title": "Short memory NN Rewards", "model_type": SMNNModel, "memory_size": 1,
          "model_kwargs": {"name": "NN"},
-         },
+         }
     ]
     envs = [
         "LunarLander-v2",
@@ -180,9 +189,12 @@ if __name__ == "__main__":
     ]
 
     for _env in envs:
-        for _m in models:
-            print(f"\n{'-' * 75}\n\tenv: {_env}\n\ttitle: {_m['title']}\n{'-' * 75}\n")
+        env = gym.make(_env)
+        print(f"\n{'-' * 75}\n\tenv: {_env}\n{'-' * 75}\n")
+        for ensemble in itertools.combinations(models, len(models)):
+
             main(
+                ensemble,
                 batch_size=64,
                 gamma=0.99,
                 buffer_size=int(1e5),
@@ -190,15 +202,11 @@ if __name__ == "__main__":
                 tau=1e-2,
                 training_interval=4,#_m["memory_size"]//2,
                 lr=1e-3,
-                epsilon_decay=0.995,
+                epsilon_decay=0.99,
                 min_epsilon=0.01,
                 verbose_interval=100,
                 render_interval=10000,
-                max_episode=1_000,
-                title=_m["title"],
-                model_type=_m["model_type"],
-                memory_size=_m["memory_size"],
-                model_kwargs=_m["model_kwargs"],
+                max_episode=500,
                 env=_env,
-                filename_weights="trained_models/"+_m["model_kwargs"]["name"]+"_"+_env
+                filename_weights="trained_models/ensemble_attn_"+_env+".weights"
             )
