@@ -1,12 +1,9 @@
-from typing import Tuple, List, Union, Iterable
-
 import torch
+
+from typing import Tuple, List, Union, Iterable
 
 
 class SMModel(torch.nn.Module):
-    """
-    """
-
     def __init__(self,
                  in_shape: Union[Tuple, List, Iterable],
                  out_shape: Union[Tuple, List, Iterable],

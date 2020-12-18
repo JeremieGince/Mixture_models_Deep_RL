@@ -1,18 +1,13 @@
-from typing import Tuple, List, Union, Iterable
-
 import numpy as np
 import torch
 from torch import nn
 
 from Models.short_memory_model import SMModel
 from Modules.ConvNd import ConvNd
+from typing import Tuple, List, Union, Iterable
 
 
 class SMCNN(SMModel):
-    """
-
-    """
-
     def __init__(self,
                  in_shape: Union[Tuple, List, Iterable],
                  out_shape: Union[Tuple, List, Iterable],
@@ -86,15 +81,6 @@ class SMCNN(SMModel):
                 layers.append(self.conv_bloc_gen(hidden_dim, hidden_dim, k))
 
         self.backbone = torch.nn.Sequential(*layers)
-
-        # _in = torch.ones(self.complete_in_shape)
-        # for layer in layers:
-        #     print(f"_in.shape: {_in.shape}")
-        #     print(f"layer: {layer}")
-        #     _out = layer(_in)
-        #     print(f"_out.shape: {_out.shape}")
-        #     _in = _out
-
         self.backbone_output_shape: tuple = tuple(self.backbone(torch.ones(self.complete_in_shape)).shape)
         hh_dim: int = int(np.prod(self.backbone_output_shape))
         self.q_predictor = torch.nn.Sequential(*[

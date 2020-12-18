@@ -1,23 +1,14 @@
-import os
-import random
-import time
-from copy import deepcopy
-from typing import Tuple, List, Union, Iterable
-
 import gym
-import matplotlib.pyplot as plt
-import numpy as np
-import torch
-from poutyne import Model
-
-from Models.short_memory_model import SMModel
-from utils import set_random_seed, show_rewards, load_model
-DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 import itertools
+import time
+
+from copy import deepcopy
 from dqn import DQN, dqn_loss, ReplayBuffer, format_batch
-
 from Ensemble.attn_ensemble import *
+from utils import set_random_seed, show_rewards, load_model
 
+
+DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 
 def main(

@@ -1,11 +1,10 @@
-from typing import Tuple, List, Union, Iterable
-
 import numpy as np
 import torch
 from torch import nn
 
 from Models.short_memory_model import SMModel
 from Modules.layers import QuantumPseudoLinearLayer
+from typing import Tuple, List, Union, Iterable
 
 
 class SMQNNModel(SMModel):

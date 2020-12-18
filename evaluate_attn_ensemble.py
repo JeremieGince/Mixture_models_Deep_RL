@@ -1,20 +1,8 @@
-import random
-from copy import deepcopy  # NEW
-from typing import Tuple, List, Union
-
 import gym
-import numpy as np
-import torch
-from torch.autograd import Variable
-from poutyne import Model
-from torch.nn import functional as F
-from typing import Tuple, List, Union, Iterable
-import matplotlib.pyplot as plt
-import os
-import sys
 import itertools
 import time
 
+from copy import deepcopy
 from utils import set_random_seed, load_model, show_rewards
 from dqn import DQN, dqn_loss
 from Ensemble.attn_ensemble import *

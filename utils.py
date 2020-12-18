@@ -5,12 +5,15 @@ import torch
 from dqn import DQN, dqn_loss
 import matplotlib.pyplot as plt 
 import os
+
+
 def set_random_seed(environment, seed):
     environment.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)  # NEW
+    torch.manual_seed(seed)
     random.seed(seed)
-    
+
+
 def load_model(model_type, path_weights, environment, memory_size=20, model_kwargs={}):
     model = model_type(environment.observation_space.shape,
                                              environment.action_space.n,
@@ -24,6 +27,7 @@ def load_model(model_type, path_weights, environment, memory_size=20, model_kwar
     )
     m.load_weights(path_weights)
     return m
+
 
 def show_rewards(R: Iterable, **kwargs):
     plt.plot(R)

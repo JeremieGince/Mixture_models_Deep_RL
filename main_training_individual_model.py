@@ -1,21 +1,15 @@
-import os
-import random
 import time
-from copy import deepcopy
-from typing import Tuple, List, Union, Iterable
-
 import gym
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from poutyne import Model
 
+from copy import deepcopy
+from dqn import ReplayBuffer, DQN, format_batch, dqn_loss
 from Models.short_memory_model import SMModel
 from utils import set_random_seed, show_rewards
+
+
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
-
-from dqn import ReplayBuffer, DQN, format_batch, dqn_loss
 
 
 def main(
@@ -50,7 +44,7 @@ def main(
         optimizer=torch.optim.Adam(model.parameters(), lr=lr),
         loss_function=dqn_loss,
     )
-    # NEW: pass a deep copy of the model
+
     target_net = DQN(actions, deepcopy(model), optimizer="sgd", loss_function=dqn_loss, )
     replay_buffer = ReplayBuffer(buffer_size)
 

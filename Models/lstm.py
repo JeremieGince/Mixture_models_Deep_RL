@@ -1,16 +1,11 @@
-from typing import Tuple, List, Union, Iterable
-
 import numpy as np
 import torch
-from torch import nn
 
 from Models.short_memory_model import SMModel
+from typing import Tuple, List, Union, Iterable
 
 
 class SMLSTM(SMModel):
-    """
-    """
-
     def __init__(self,
                  in_shape: Union[Tuple, List, Iterable],
                  out_shape: Union[Tuple, List, Iterable],
@@ -46,7 +41,6 @@ class SMLSTM(SMModel):
         [state, ] = inputs
         state_features = self.backbone(state.float())
 
-        # lstm_output, _ = self.lstm(state_features.permute(1, 0, 2), (self.h0, self.c0))
         lstm_output, _ = self.lstm(state_features.permute(1, 0, 2))
         env_features = torch.flatten(lstm_output.permute(1, 0, 2), start_dim=1)
         q_values: torch.Tensor = self.q_predictor(env_features)

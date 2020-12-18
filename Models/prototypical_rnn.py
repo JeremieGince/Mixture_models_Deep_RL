@@ -1,16 +1,12 @@
-from typing import Tuple, List, Union, Iterable
-
 import numpy as np
 import torch
 from torch import nn
 
 from Models.short_memory_model import SMModel
+from typing import Tuple, List, Union, Iterable
 
 
 class ProtoSMRNN(SMModel):
-    """
-    """
-
     def __init__(self,
                  in_shape: Union[Tuple, List, Iterable],
                  out_shape: Union[Tuple, List, Iterable],

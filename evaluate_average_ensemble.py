@@ -1,27 +1,12 @@
-import random
-from copy import deepcopy  # NEW
-from typing import Tuple, List, Union
-
 import gym
 import numpy as np
-import torch
-from torch.autograd import Variable
-from poutyne import Model
-from torch.nn import functional as F
-from typing import Tuple, List, Union, Iterable
-import matplotlib.pyplot as plt
-import os
-import sys
-#sys.path.append("..")
-#from Models import *
-#from TP2.Q1.q1 import NNModel
 import itertools
 import time
 
+from copy import deepcopy
 from utils import set_random_seed, load_model, show_rewards
-from dqn import DQN, dqn_loss
-    
-    
+
+
 def evaluate_memory_models(model, environment, memory_size=20, test_episodes=100):
     steps_done = 0
     episodes_done = 0

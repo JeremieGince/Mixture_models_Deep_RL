@@ -4,11 +4,10 @@ import random
 from poutyne import Model
 import torch
 
+
 class ReplayBuffer:
     def __init__(self, buffer_size):
         self.__buffer_size = buffer_size
-
-        # List[(s, a, r, next_s, episode_done)]
         self.data: List[Tuple[np.ndarray, int, float, np.ndarray, bool]] = []
 
     def store(self, element: Tuple[np.ndarray, int, float, np.ndarray, bool]):
@@ -29,8 +28,7 @@ class ReplayBuffer:
         """
         return random.choices(self.data, k=batch_size)
     
-    
-    
+
 class DQN(Model):
     def __init__(self, actions, *args, **kwargs):
         self.actions = actions
@@ -65,7 +63,8 @@ class DQN(Model):
             new_weights[k] = (1 - tau) * own_weights[k] + tau * other_weights[k]
 
         self.set_weights(new_weights)
-        
+
+
 def format_batch(
         batch: List[Tuple[np.ndarray, int, float, np.ndarray, bool]],
         target_network: DQN,
@@ -84,7 +83,6 @@ def format_batch(
                       selected actions according to the target network
                       and targets are the one-step lookahead targets.
     """
-    # TODO: Implement
     states = np.array([e[0] for e in batch])
     actions = np.array([e[1] for e in batch])
 
@@ -106,6 +104,5 @@ def dqn_loss(y_pred: torch.Tensor, y_target: Tuple[torch.Tensor, torch.Tensor]) 
     Returns :
         - The DQN loss
     """
-    # TODO: Implement
     actions, targets = y_target
     return torch.mean(torch.pow(targets.detach() - y_pred[np.arange(y_pred.shape[0]), actions.long()], 2))

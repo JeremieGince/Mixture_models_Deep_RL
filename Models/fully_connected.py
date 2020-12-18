@@ -1,31 +1,12 @@
-from typing import Tuple, List, Union, Iterable
-
 import numpy as np
 import torch
 from torch import nn
 
 from Models.short_memory_model import SMModel
+from typing import Tuple, List, Union, Iterable
 
-"""class NNModel(torch.nn.Module):
 
-    def __init__(self, in_dim, out_dim, n_hidden_layers=3, hidden_dim=64, memory_size=1, name=""):
-        super().__init__()
-        self.memory_size = memory_size
-        self.name = name
-        layers = [torch.nn.Linear(in_dim, hidden_dim), torch.nn.ReLU()]
-        for _ in range(n_hidden_layers - 1):
-            layers.extend([torch.nn.Linear(hidden_dim, hidden_dim), torch.nn.ReLU()])
-        layers.append(torch.nn.Linear(hidden_dim, out_dim))
-
-        self.fa = torch.nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.fa(x.float())
-"""
 class SMNNModel(SMModel):
-    """
-    """
-
     def __init__(self,
                  in_shape: Union[Tuple, List, Iterable],
                  out_shape: Union[Tuple, List, Iterable],
