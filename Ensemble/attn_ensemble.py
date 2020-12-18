@@ -11,7 +11,8 @@ class Fusion_network(torch.nn.Module):
         self.n_actions = n_actions
         self.memory_size=1
         super().__init__()
-        layers = [torch.nn.Linear(in_dim, hidden_dim), torch.nn.ReLU()]
+        layers = [torch.nn.Linear(in_dim+self.n_models*self.n_actions, hidden_dim), torch.nn.ReLU()]
+        #layers = [torch.nn.Linear(in_dim, hidden_dim), torch.nn.ReLU()]
         for _ in range(n_hidden_layers - 1):
             layers.extend([torch.nn.Linear(hidden_dim, hidden_dim), torch.nn.ReLU()])
         layers.append(torch.nn.Linear(hidden_dim, out_dim))
@@ -31,13 +32,17 @@ class Fusion_network(torch.nn.Module):
             pred_actions = pred_actions#/np.linalg.norm(pred_actions, axis=-1)[:,:,np.newaxis]
         return pred_actions    
         
-        
+    def format_states_actions(self, state, pred_actions):
+        #print(state[:,-1].shape, pred_actions.reshape((pred_actions.shape[0],-1)).shape)
+        #print(np.concatenate((pred_actions.reshape((pred_actions.shape[0],-1)), state[:,-1]), axis=-1).shape)
+        return torch.cat((pred_actions.reshape((pred_actions.shape[0],-1)), state[:,-1]), dim=-1)
+    
     def forward(self, state, return_weights=False):
         pred_actions = torch.from_numpy(self.get_actions(state))
         
-        attn = self.fa(state.float()[:,-1])
+        state_preds = self.format_states_actions(state, pred_actions)
+        attn = self.fa(state_preds.float())#state.float()[:,-1])
         attn = torch.nn.functional.softmax(attn/1000, dim=-1)
-        #print(pred_actions.shape, attn.unsqueeze(-1).shape)
         weighted_sum = torch.sum(attn.unsqueeze(-1)*pred_actions, axis=1)
         #print(attn[0])
         self.last_preds = weighted_sum

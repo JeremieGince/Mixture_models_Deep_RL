@@ -113,7 +113,7 @@ if __name__ == "__main__":
                                                network=attn_fusion,
                                                optimizer=torch.optim.Adam(attn_fusion.parameters(), lr=0),
                                                loss_function=dqn_loss)
-            attn_ensemble.load_weights("trained_models/ensemble_attn_"+_env+".weights")
+            attn_ensemble.load_weights("trained_models/ensemble_attn_"+_env+"_2.weights")
             history = evaluate_memory_models(attn_ensemble, env, test_episodes=100)
-            np.save("Experiments/test_results_ensembles/attn_ensemble_"+_env, history)
+            np.save("Experiments/test_results_ensembles/attn_ensemble_"+_env+"_2", history)
             print()

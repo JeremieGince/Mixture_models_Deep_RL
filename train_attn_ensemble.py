@@ -104,7 +104,7 @@ def main(
             if steps_done % training_interval == 0:
                 if len(replay_buffer.data) >= batch_size:
                     batch = replay_buffer.get_batch(batch_size)
-                    x, y = format_batch(batch, target_net, gamma)
+                    x, y = format_batch(batch, target_net, gamma, ensemble=True)
                     loss = attn_ensemble.train_on_batch(x, y)
                     target_net.soft_update(attn_ensemble, tau)
 
@@ -208,5 +208,5 @@ if __name__ == "__main__":
                 render_interval=10000,
                 max_episode=500,
                 env=_env,
-                filename_weights="trained_models/ensemble_attn_"+_env+".weights"
+                filename_weights="trained_models/ensemble_attn_"+_env+"_2.weights"
             )
